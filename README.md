@@ -1,0 +1,1 @@
+My solutions to exercises in "Software Foundations" (Benjamin Pierce et al.)
