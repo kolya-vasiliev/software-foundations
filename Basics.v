@@ -140,6 +140,7 @@ Example test_next_weekday:
 
 Proof. simpl. reflexivity.  Qed.
 
+
 (** The details are not important for now (we'll come back to
     them in a bit), but essentially this can be read as "The assertion
     we've just made can be proved by observing that both sides of the
@@ -489,6 +490,7 @@ Fixpoint exp (base power : nat) : nat :=
 >>
     Translate this into Coq. *)
 
+
 Fixpoint factorial (n:nat) : nat := 
   match n with
     | O => S O
@@ -726,6 +728,7 @@ Theorem plus_id_exercise : forall n m o : nat,
 Proof.
   intros n m o H1 H2. rewrite H1, H2. reflexivity. Qed.
 
+
 (** [] *)
 
 (** As we've seen in earlier examples, the [Admitted] command
@@ -837,6 +840,7 @@ Proof.
     style, since Coq often makes confusing choices of names when left
     to its own devices. *)
 
+
 (** **** Exercise: 1 star (zero_nbeq_plus_1)  *)
 Theorem zero_nbeq_plus_1 : forall n : nat,
   beq_nat 0 (n + 1) = false.
@@ -857,7 +861,7 @@ Theorem identity_fn_applied_twice :
   forall (f : bool -> bool), 
   (forall (x : bool), f x = x) ->
   forall (b : bool), f (f b) = b.
-Proof. intros f H b. rewrite H, H. reflexivity.
+Proof. intros f H b. rewrite H, H. reflexivity. Qed.
 
 (** Now state and prove a theorem [negation_fn_applied_twice] similar
     to the previous one but where the second hypothesis says that the
@@ -885,6 +889,7 @@ Proof.
   simpl. intros H. rewrite H. reflexivity.
   simpl. intros H. rewrite H. reflexivity. Qed.
   
+
 (** [] *)
 
 (** **** Exercise: 3 stars (binary)  *)
@@ -1046,4 +1051,3 @@ Fixpoint evenb' (n m:nat) : bool :=
 (** [] *)
 
 (** $Date: 2014-12-31 15:31:47 -0500 (Wed, 31 Dec 2014) $ *)
-
