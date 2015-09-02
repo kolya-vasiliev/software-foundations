@@ -416,7 +416,12 @@ Proof. intros m n. induction m as [|m'].
 Theorem evenb_n__oddb_Sn : forall n : nat,
   evenb n = negb (evenb (S n)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [|n'].
+  Case "n = 0".
+    reflexivity.
+  Case "n = S n'".
+    simpl. rewrite IHn', negb_involutive. reflexivity. Qed. 
+  
 (** [] *)
 
 (* ###################################################################### *)
@@ -433,27 +438,35 @@ Proof.
 
 Theorem ble_nat_refl : forall n:nat,
   true = ble_nat n n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n. induction n as [|n'].
+  Case "n = 0".
+    reflexivity.
+  Case "n = S n'".
+    rewrite IHn'. reflexivity. Qed.
 
 Theorem zero_nbeq_S : forall n:nat,
   beq_nat 0 (S n) = false.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 Theorem andb_false_r : forall b : bool,
   andb b false = false.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros b. destruct b.
+  Case "b = true".
+    reflexivity.
+  Case "b = false".
+    reflexivity. Qed.
 
 Theorem plus_ble_compat_l : forall n m p : nat, 
   ble_nat n m = true -> ble_nat (p + n) (p + m) = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m p H. induction p as [|p']. 
+  Case "p = 0".
+    rewrite <- H. reflexivity. 
+  Case "p = S p'".
+    simpl. rewrite IHp'. reflexivity. Qed.
 
 Theorem S_nbeq_0 : forall n:nat,
   beq_nat (S n) 0 = false.
-Proof.
+Proof. 
   (* FILL IN HERE *) Admitted.
 
 Theorem mult_1_l : forall n:nat, 1 * n = n.
