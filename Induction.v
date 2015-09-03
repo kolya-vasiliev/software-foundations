@@ -466,12 +466,10 @@ Proof. intros n m p H. induction p as [|p'].
 
 Theorem S_nbeq_0 : forall n:nat,
   beq_nat (S n) 0 = false.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 Theorem mult_1_l : forall n:nat, 1 * n = n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n. simpl. rewrite plus_0_r. reflexivity. Qed.
 
 Theorem all3_spec : forall b c : bool,
     orb
@@ -479,19 +477,31 @@ Theorem all3_spec : forall b c : bool,
       (orb (negb b)
                (negb c))
   = true.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros b c. destruct b. 
+  Case "b = true".
+    simpl. destruct c.
+    SCase "c = true".
+      reflexivity.
+    SCase "c = false".
+      reflexivity.
+  Case "b = false".
+    reflexivity. Qed.
 
 Theorem mult_plus_distr_r : forall n m p : nat,
   (n + m) * p = (n * p) + (m * p).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m p. induction n as [|n'].
+  Case "n = 0".
+    reflexivity.
+  Case "n = S n'".
+    simpl. rewrite IHn', plus_assoc. reflexivity. Qed.
 
 Theorem mult_assoc : forall n m p : nat,
   n * (m * p) = (n * m) * p.
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+Proof. intros n m p. induction n as [|n'].
+  Case "n = 0".
+    reflexivity.
+  Case "n = S n'".
+    simpl. rewrite IHn', mult_plus_distr_r. reflexivity. Qed.
 
 (** **** Exercise: 2 stars, optional (beq_nat_refl)  *)
 (** Prove the following theorem.  Putting [true] on the left-hand side
@@ -502,8 +512,12 @@ problem using the theorem no matter which way we state it. *)
 
 Theorem beq_nat_refl : forall n : nat, 
   true = beq_nat n n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n. induction n as [|n'].
+  Case "n = 0".
+    reflexivity.
+  Case "n = S n'".
+    rewrite IHn'. reflexivity. Qed.
+
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (plus_swap')  *)
@@ -520,8 +534,11 @@ Proof.
 
 Theorem plus_swap' : forall n m p : nat, 
   n + (m + p) = m + (n + p).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m p. rewrite plus_assoc, plus_assoc.
+  replace (n + m) with (m + n). reflexivity.
+  Case "Proof of replacement".
+    rewrite plus_comm. reflexivity. Qed.
+
 (** [] *)
 
 
@@ -539,7 +556,16 @@ Proof.
     wanting to change your original definitions to make the property
     easier to prove, feel free to do so.) *)
 
-(* FILL IN HERE *)
+Theorem bin_to_nat_pres_incr : forall n : bin,
+  bin_to_nat (incr n) = S (bin_to_nat n).
+Proof. intros n. induction n as [|n'|n'].
+  Case "n = o".
+    reflexivity.
+  Case "n = dbl n'".
+    reflexivity.
+  Case "n = dbl1 n'".
+    simpl. rewrite IHn'. reflexivity. Qed.
+
 (** [] *)
 
 
@@ -569,7 +595,9 @@ Proof.
     here. 
 *)
 
-(* FILL IN HERE *)
+
+
+
 (** [] *)
 
 (* ###################################################################### *)
