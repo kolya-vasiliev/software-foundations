@@ -268,13 +268,14 @@ Proof. intros n m p. induction n as [|n'].
 
 (** **** Exercise: 2 stars (double_plus)  *)
 
-(** Consider the following function, which doubles its argument: *)
+(** Consider the following function, which doubles its argument: 
 
 Fixpoint double (n:nat) :=
   match n with
   | O => O
   | S n' => S (S (double n'))
   end.
+*)
 
 (** Use induction to prove this simple fact about [double]: *)
 
@@ -595,8 +596,119 @@ Proof. intros n. induction n as [|n'|n'].
     here. 
 *)
 
+Fixpoint nat_to_bin (n:nat) : bin :=
+  match n with
+  | O => o
+  | S n' => incr (nat_to_bin n')
+  end.
 
+Theorem nat_2_bin_invers: 
+  forall n, bin_to_nat (nat_to_bin n) = n. 
+Proof. intros n. induction n as [|n'].
+  Case "n = O".
+    reflexivity.
+  Case "n = S n'".
+    simpl. rewrite bin_to_nat_pres_incr, IHn'. reflexivity. Qed. 
 
+Fixpoint is_zero (n:bin) : bool :=
+  match n with 
+  | o => true
+  | dbl n' => is_zero n'
+  | dbl1 n' => false
+  end.
+
+Fixpoint normalize (n: bin) : bin :=
+  if is_zero n then 
+    o 
+  else match n with 
+  | o => o
+  | dbl1 n' => dbl1 (normalize n')
+  | dbl n' => dbl (normalize n')
+  end.
+
+Theorem is_zero_incr: forall n, 
+  is_zero (incr n) = false.
+Proof. intros n. induction n as [|n'|n']. 
+  Case "n = o".
+    reflexivity. 
+  Case "n = dbl n'".
+    reflexivity. 
+  Case "n = dbl1 n'".
+    simpl. rewrite IHn'. reflexivity. 
+Qed.
+
+Theorem normalize_incr: forall n, 
+  normalize (incr n) = incr (normalize n).
+Proof. intros n. induction n as [|n'|n'].
+  Case "n = o".
+    reflexivity.
+  Case "n = dbl n'".
+    simpl. 
+    assert (H: is_zero n' = true -> normalize n' = o).
+      destruct n'. 
+        reflexivity. 
+        simpl. intros H. rewrite H. reflexivity.
+        simpl. intros H. inversion H.       
+    destruct (is_zero n').
+      rewrite H. reflexivity. reflexivity.
+    reflexivity.
+  Case "n = dbl1 n'".
+    simpl. rewrite is_zero_incr, IHn'. reflexivity.
+Qed.
+
+Theorem nat_2_bin_double: forall n,
+  nat_to_bin (double n) = normalize (dbl (nat_to_bin n)).
+Proof. intros n. induction n as [|n'].
+  Case "n = O".
+    reflexivity.
+  Case "n = S n'".
+    simpl.  rewrite IHn', is_zero_incr.
+    rewrite -> normalize_incr.
+    rewrite <- normalize_incr. reflexivity.
+Qed.
+
+Theorem is_zero_normalize: forall n,
+  is_zero (normalize n) = is_zero n.
+Proof. intros n. induction n.
+  Case "n = o".
+    reflexivity.
+  Case "n = dbl n'".
+    simpl. destruct (is_zero n).
+      reflexivity.
+      rewrite <- IHn. reflexivity.
+  Case "n = dbl1 n'".
+    reflexivity.
+Qed.    
+
+Theorem normalize_normalize: forall n,
+  normalize (normalize n) = normalize n.
+Proof. intros n. induction n as [|n'|n'].
+  Case "n = o".
+    reflexivity.
+  Case "n = dbl n'".
+    assert (is_zero (normalize n') = is_zero n').
+      rewrite is_zero_normalize. reflexivity.
+    simpl. destruct (is_zero n').
+      reflexivity. 
+      simpl. rewrite H, IHn'. reflexivity.
+  Case "n = dbl1 n'".
+    simpl. rewrite IHn'. reflexivity.
+Qed.
+
+Theorem bin_2_nat_invers: 
+  forall n, nat_to_bin (bin_to_nat n) = normalize n. 
+Proof. intros n. induction n as [|n'|n'].
+  Case "n = o".
+    reflexivity.
+  Case "n = dbl n'".
+    simpl. rewrite nat_2_bin_double, IHn'.
+    simpl. rewrite is_zero_normalize, normalize_normalize. 
+    reflexivity.
+  Case "n = dbl1 n'".
+    simpl. rewrite nat_2_bin_double, IHn'.
+    rewrite <- normalize_incr. simpl. rewrite normalize_normalize. 
+    reflexivity.
+Qed.
 
 (** [] *)
 
