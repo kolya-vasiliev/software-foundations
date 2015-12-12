@@ -321,7 +321,12 @@ Proof. intros n m Gn Gm. induction Gn as [|n'|n'].
 
 (** **** Exercise: 3 stars, advanced (beautiful__gorgeous)  *)
 Theorem beautiful__gorgeous : forall n, beautiful n -> gorgeous n.
-Proof. 
+Proof. intros n H. induction H.
+  apply g_0.
+  apply g_plus3. apply g_0.
+  apply g_plus5. apply g_0.
+  apply gorgeous_sum. apply IHbeautiful1. apply IHbeautiful2. Qed.
+
 
 (** [] *)
 
@@ -333,16 +338,16 @@ Proof.
     You might find the following helper lemma useful. *)
 
 Lemma helper_g_times2 : forall x y z, x + (z + y) = z + x + y.
-Proof.
-   (* FILL IN HERE *) Admitted.
+Proof. intros x y z. rewrite plus_assoc. rewrite (plus_comm x z).
+  reflexivity. Qed.
 
 Theorem g_times2: forall n, gorgeous n -> gorgeous (2*n).
 Proof.
    intros n H. simpl. 
-   induction H.
-   (* FILL IN HERE *) Admitted.
-(** [] *)
-
+   apply beautiful__gorgeous. apply b_sum. 
+   apply gorgeous__beautiful. apply H.
+   apply b_sum. apply gorgeous__beautiful. apply H. apply b_0.
+Qed.
 
 
 (** Here is a proof that the inductive definition of evenness implies
@@ -361,6 +366,7 @@ Qed.
 (** **** Exercise: 1 star (ev__even)  *) 
 (** Could this proof also be carried out by induction on [n] instead
     of [E]?  If not, why not? *)
+
 
 (* FILL IN HERE *)
 (** [] *)
@@ -390,8 +396,9 @@ Qed.
 
 Theorem ev_sum : forall n m,
    ev n -> ev m -> ev (n+m).
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m evn evm. induction evn.
+  apply evm. apply ev_SS. apply IHevn. Qed.
+
 (** [] *)
 
 
@@ -428,7 +435,7 @@ the relevant cases. *)
 Theorem SSev__even : forall n,
   ev (S (S n)) -> ev n.
 Proof.
-  intros n E. 
+  intros n E.
   inversion E as [| n' E']. 
   apply E'. Qed.
 
@@ -469,16 +476,16 @@ Proof.
 (** **** Exercise: 1 star (inversion_practice)  *)
 Theorem SSSSev__even : forall n,
   ev (S (S (S (S n)))) -> ev n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n H. inversion H.
+  inversion H1. apply H3. Qed.
 
 (** The [inversion] tactic can also be used to derive goals by showing
     the absurdity of a hypothesis. *)
 
 Theorem even5_nonsense : 
   ev 5 -> 2 + 2 = 9.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros H. inversion H. inversion H1. inversion H3. Qed. 
+
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (ev_ev__ev)  *)
@@ -487,8 +494,10 @@ Proof.
 
 Theorem ev_ev__ev : forall n m,
   ev (n+m) -> ev n -> ev m.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m Hnm Hn. induction Hn.
+  apply Hnm. 
+  inversion Hnm. apply IHHn. apply H0. Qed.
+
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (ev_plus_plus)  *)
@@ -498,8 +507,11 @@ Proof.
 
 Theorem ev_plus_plus : forall n m p,
   ev (n+m) -> ev (n+p) -> ev (m+p).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m p H H'. apply ev_ev__ev with (n+n).
+  rewrite <- plus_assoc, (plus_swap n m p), plus_assoc.
+  apply ev_sum. apply H. apply H'. rewrite <- double_plus. apply double_even.
+Qed.
+
 (** [] *)
 
 
@@ -594,7 +606,26 @@ Qed.
        forall l, pal l -> l = rev l.
 *)
 
-(* FILL IN HERE *)
+Inductive pal {X} : list X -> Prop :=
+| p_nil : pal []
+| p_one : forall x, pal [x]
+| p_SS  : forall x l, pal l -> pal (x :: snoc l x). 
+
+Theorem app_assoc : forall X (l m n:list X), l ++ m ++ n = (l ++ m) ++ n.
+Proof. Admitted. (*intros X l m n. induction l. reflexivity. 
+  simpl. apply f_equal. apply IHl. Qed. *)
+ 
+Theorem pal_app_rev: forall X (l:list X), pal (l ++ rev l).
+Proof. Admitted. (* intros X l. induction l. apply p_nil. 
+  simpl. rewrite <- snoc_with_append.
+  apply p_SS. apply IHl. Qed. *)
+
+Theorem pal_rev: forall X (l:list X), pal l -> l = rev l.
+Proof. Admitted. (* intros X l H. induction H.
+  reflexivity.
+  reflexivity.
+  simpl. rewrite rev_snoc. rewrite <- IHpal. reflexivity. Qed. *)
+ 
 (** [] *)
 
 (* Again, the converse direction is much more difficult, due to the
@@ -606,8 +637,72 @@ lack of evidence. *)
      forall l, l = rev l -> pal l.
 *)
 
+Theorem ppds: forall X x y (l:list X), 
+  rev (x :: snoc l y) = x :: snoc l y ->
+    x = y /\ rev l = l.
+Proof. intros X x y l H. 
+  simpl in H. rewrite rev_snoc in H. inversion H.
+  Admitted.
+
+Fixpoint head {X} (l:list X) : list X := 
+  match l with
+  | [] => []
+  | h :: t => [h]
+  end.
+
+Fixpoint last {X} (l:list X) : list X := 
+  match l with
+  | [] => []
+  | _last :: [] => [_last] (* | h :: _last :: [] => [_last] *)
+  | h :: t => last t
+  end.
+
+Fixpoint headbody {X} (l:list X) : list X := 
+  match l with
+  | [] => []
+  | h :: [] => []
+  | h :: t => h :: headbody t
+  end.
+
+Definition body {X} (l:list X) : list X := 
+  match headbody l with
+  | [] => [] 
+  | h :: t => t
+  end.
+
+Theorem list_represent: forall X (l:list X),
+  l = headbody l ++ last l.
+Proof. intros X l. induction l. reflexivity.
+  destruct l. reflexivity.
+    simpl. apply f_equal. apply IHl. Qed.
+
+Theorem rev_headbody: forall X (l:list X) x, 
+  l <> [] -> x :: (headbody l ++ last l) = 
+    rev (x :: (headbody l ++ last l)) ->
+ [x] = last l.
+Proof. intros X l x. induction l. intros H. 
+apply ex_falso_quodlibet. apply H. reflexivity.
+  destruct l. 
+    simpl. intros H1 H2. inversion H2. reflexivity.
+
+
+Theorem palindrome_converse: forall X (l:list X), l = rev l -> pal l.
+Proof. intros X l H. induction (@pal X). apply p_nil. reflexivity.
+
+ Qed.
+
 (* FILL IN HERE *)
 (** [] *)
+
+Theorem list_represent: forall X (l:list X),
+  l = [] \/ l = [] 
+   
+
+Theorem head_body_last: forall X (l:list X),
+  l = (head l) ++ (body l) ++ (last l). 
+Proof. intros X l. induction l.
+  reflexivity. apply f_equal. unfold body. simpl. 
+  induction l. reflexivity.
 
 
 
