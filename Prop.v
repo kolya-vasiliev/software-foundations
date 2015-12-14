@@ -880,37 +880,47 @@ Theorem plus_lt : forall n1 n2 m,
   n1 + n2 < m ->
   n1 < m /\ n2 < m.
 Proof. 
- unfold lt. 
+  unfold lt. split. 
+  apply le_trans with (S (n1 + n2)).
+  apply n_le_m__Sn_le_Sm. apply le_plus_l. apply H.
+  apply le_trans with (S (n1 + n2)).
+  apply n_le_m__Sn_le_Sm. rewrite plus_comm.
+  apply le_plus_l. apply H.
+Qed.
 
 Theorem lt_S : forall n m,
   n < m ->
   n < S m.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. unfold lt. intros n m H. apply le_trans with m.
+  apply H. apply le_S. apply le_n. Qed.
 
 Theorem ble_nat_true : forall n m,
   ble_nat n m = true -> n <= m.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof. induction n. intros m H. apply O_le_n.
+  intros m H. destruct m. inversion H.
+  apply n_le_m__Sn_le_Sm. apply IHn. rewrite <- H.
+  reflexivity. Qed.
 
 Theorem le_ble_nat : forall n m,
-  n <= m ->
+n <= m ->
   ble_nat n m = true.
-Proof.
-  (* Hint: This may be easiest to prove by induction on [m]. *)
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m H. induction H. symmetry. apply ble_nat_refl.
+  destruct n. reflexivity.
+  apply ble_nat_Sn. apply IHle. Qed.
 
 Theorem ble_nat_true_trans : forall n m o,
   ble_nat n m = true -> ble_nat m o = true -> ble_nat n o = true.                               
-Proof.
-  (* Hint: This theorem can be easily proved without using [induction]. *)
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m o H H2. apply le_ble_nat. apply le_trans with m.
+  apply ble_nat_true. apply H.
+  apply ble_nat_true. apply H2.
+Qed.  
 
 (** **** Exercise: 2 stars, optional (ble_nat_false)  *)
 Theorem ble_nat_false : forall n m,
   ble_nat n m = false -> ~(n <= m).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m H H2. apply le_ble_nat in H2. rewrite H2 in H.
+  inversion H. Qed.
+
 (** [] *)
 
 
@@ -950,6 +960,22 @@ Inductive R : nat -> nat -> nat -> Prop :=
     [n], and [o], and vice versa?
 *)
 
+Theorem R_sum: forall n m o, R n m o -> n + m = o.
+Proof. intros n m o. intros H. induction H.
+    reflexivity. rewrite <- IHR. reflexivity.
+    rewrite <- IHR, plus_n_Sm. reflexivity.
+    rewrite <- plus_n_Sm in IHR. inversion IHR. reflexivity.
+    rewrite plus_comm. apply IHR.
+Qed.
+
+Theorem R_plus_n_m: forall n m, R n m (n + m).
+Proof. induction n. induction m.
+  apply c1. apply c3. apply IHm.
+  intros m. apply c2. apply IHn. Qed.
+
+Theorem sum_R: forall n m o, n + m = o -> R n m o.
+Proof. intros n m o H. rewrite <- H. apply R_plus_n_m. Qed.
+
 (* FILL IN HERE *)
 (** [] *)
 
@@ -987,7 +1013,41 @@ End R.
       Hint: choose your induction carefully!
 *)
 
-(* FILL IN HERE *)
+Inductive subseq : list nat -> list nat -> Prop :=
+  | ss_nil : forall l, subseq [] l
+  | ss_f : forall x l1 l2, subseq l1 l2 -> subseq l1 (x::l2)
+  | ss_t : forall x l1 l2, subseq l1 l2 -> subseq (x::l1) (x::l2).
+  
+Theorem subseq_refl: forall l,
+  subseq l l.
+Proof. induction l. apply ss_nil.
+  apply ss_t. apply IHl. Qed.
+
+Theorem subseq_app: forall l1 l2 l3,
+  subseq l1 l2 -> subseq l1 (l2++l3).
+Proof. intros l1 l2 l3 H. induction H. 
+  apply ss_nil. apply ss_f. apply IHsubseq.
+  apply ss_t. apply IHsubseq. Qed.
+
+Theorem subseq_trans: forall l1 l2 l3, 
+  subseq l1 l2 -> subseq l2 l3 -> subseq l1 l3.
+Proof. intros l1 l2 l3. 
+  generalize dependent l1. generalize dependent l2.
+  induction l3. intros l1 l2 H1 H2. 
+  inversion H2. rewrite <- H in H1. inversion H1. apply ss_nil.
+  intros l2 l1 H1 H2. 
+    inversion H2.
+      rewrite <- H in H1. inversion H1. apply ss_nil.
+      apply ss_f. apply IHl3 with l2. apply H1. apply H3.
+      inversion H1. 
+        apply ss_nil. 
+        apply ss_f. apply IHl3 with l6. apply H5. 
+          rewrite <- H7 in H0. inversion H0. rewrite <- H10.
+          apply H3.
+        rewrite H, <- H7 in H0. inversion H0. apply ss_t.
+        apply IHl3 with l6. apply H5. rewrite <- H10. apply H3.
+Qed.   
+
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (R_provability)  *)
