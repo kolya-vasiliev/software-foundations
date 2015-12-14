@@ -609,19 +609,19 @@ Qed.
 Inductive pal {X} : list X -> Prop :=
 | p_nil : pal []
 | p_one : forall x, pal [x]
-| p_SS  : forall x l, pal l -> pal (x :: snoc l x). 
+| p_SS  : forall x l, pal l -> pal (x :: l ++ [x]). 
 
 Theorem app_assoc : forall X (l m n:list X), l ++ m ++ n = (l ++ m) ++ n.
-Proof. Admitted. (*intros X l m n. induction l. reflexivity. 
-  simpl. apply f_equal. apply IHl. Qed. *)
+Proof. intros X l m n. induction l. reflexivity. 
+  simpl. apply f_equal. apply IHl. Qed. 
  
 Theorem pal_app_rev: forall X (l:list X), pal (l ++ rev l).
-Proof. Admitted. (* intros X l. induction l. apply p_nil. 
-  simpl. rewrite <- snoc_with_append.
-  apply p_SS. apply IHl. Qed. *)
+Proof. intros X l. induction l. apply p_nil. 
+  simpl. Admitted. (*rewrite <- snoc_with_append.
+  apply p_SS. apply IHl. Qed.*)
 
 Theorem pal_rev: forall X (l:list X), pal l -> l = rev l.
-Proof. Admitted. (* intros X l H. induction H.
+Proof.  Admitted. (* intros X l H. induction H.
   reflexivity.
   reflexivity.
   simpl. rewrite rev_snoc. rewrite <- IHpal. reflexivity. Qed. *)
@@ -637,73 +637,103 @@ lack of evidence. *)
      forall l, l = rev l -> pal l.
 *)
 
-Theorem ppds: forall X x y (l:list X), 
-  rev (x :: snoc l y) = x :: snoc l y ->
-    x = y /\ rev l = l.
-Proof. intros X x y l H. 
-  simpl in H. rewrite rev_snoc in H. inversion H.
-  Admitted.
-
-Fixpoint head {X} (l:list X) : list X := 
-  match l with
-  | [] => []
-  | h :: t => [h]
-  end.
-
 Fixpoint last {X} (l:list X) : list X := 
   match l with
   | [] => []
-  | _last :: [] => [_last] (* | h :: _last :: [] => [_last] *)
+  | _last :: [] => [_last] 
   | h :: t => last t
   end.
 
-Fixpoint headbody {X} (l:list X) : list X := 
+Fixpoint body {X} (l:list X) : list X := 
   match l with
   | [] => []
   | h :: [] => []
-  | h :: t => h :: headbody t
+  | h :: t => h :: body t
   end.
 
-Definition body {X} (l:list X) : list X := 
-  match headbody l with
-  | [] => [] 
-  | h :: t => t
-  end.
+Theorem last_last: forall X (x:X) l,
+  last (l ++ [x]) = [x].
+Proof. intros X x l. induction l.
+  reflexivity.
+  destruct l. reflexivity.
+  replace (last ((x0 :: x1 :: l) ++ [x])) with (last ((x1 :: l) ++ [x])).
+  apply IHl. reflexivity.
+Qed.  
+
+Theorem body_body: forall X (x:X) l,
+  body (l ++ [x]) = l.
+Proof. induction l. reflexivity. 
+  replace (body ((x0 :: l) ++ [x])) with (x0 :: body (l ++ [x])).
+  apply f_equal. apply IHl. destruct l. reflexivity. reflexivity. 
+Qed.
 
 Theorem list_represent: forall X (l:list X),
-  l = headbody l ++ last l.
+  l = body l ++ last l.
 Proof. intros X l. induction l. reflexivity.
   destruct l. reflexivity.
     simpl. apply f_equal. apply IHl. Qed.
 
-Theorem rev_headbody: forall X (l:list X) x, 
-  l <> [] -> x :: (headbody l ++ last l) = 
-    rev (x :: (headbody l ++ last l)) ->
- [x] = last l.
-Proof. intros X l x. induction l. intros H. 
-apply ex_falso_quodlibet. apply H. reflexivity.
-  destruct l. 
-    simpl. intros H1 H2. inversion H2. reflexivity.
+Theorem last_rev: forall X (x:X) l,
+  rev (x :: l) = x :: l -> last (x::l) = [x].
+Proof. intros X x l H. simpl in H. rewrite snoc_app in H. 
+  rewrite <- H. apply last_last. Qed.
 
+Theorem body_rev: forall X (x:X) l,
+  rev (x :: l) = x :: l -> rev (body l) = body l.
+Proof. intros X x l H. destruct l. reflexivity.
+   assert (HL: last (x::x0::l) = [x]).
+   apply last_rev. apply H.
+   replace (last (x :: x0 :: l)) with (last (x0 :: l)) in HL.
+   replace (rev (x :: x0 :: l)) with (rev (x0 :: l) ++ [x]) in H. 
+   apply f_equal with (f:=body) in H.
+   rewrite body_body in H. 
+   replace (body (x :: x0 :: l)) with (x :: (body (x0 :: l))) in H.
+   assert (x :: rev (body (x0 :: l)) = x :: body (x0 :: l)).
+   rewrite <- H. rewrite <- rev_snoc. rewrite snoc_app. 
+   rewrite <- HL. rewrite <- list_represent. reflexivity.
+   inversion H0. apply H2.
+   reflexivity. 
+   rewrite <- snoc_app. reflexivity.
+   reflexivity.
+Qed.
 
-Theorem palindrome_converse: forall X (l:list X), l = rev l -> pal l.
-Proof. intros X l H. induction (@pal X). apply p_nil. reflexivity.
+Theorem ble_nat_bodylength: forall X (l:list X) x, 
+  S (length (body (x :: l))) = length (x :: l).
+Proof. induction l. reflexivity.
+  intros x0. 
+  replace (length (x0 :: x :: l)) with (S (length (x :: l))).
+  rewrite <- IHl. reflexivity. reflexivity. Qed.
 
- Qed.
+Theorem ble_nat_Sn: forall n m, 
+  ble_nat (S n) m = true -> ble_nat n m = true.
+Proof. induction n. reflexivity.
+  destruct m.  intros H. inversion H.
+    apply IHn. Qed.
 
-(* FILL IN HERE *)
-(** [] *)
-
-Theorem list_represent: forall X (l:list X),
-  l = [] \/ l = [] 
+Theorem pal_length: forall X n (l:list X), ble_nat (length l) n = true -> 
+  l = rev l -> pal l.
+Proof. intros X n. induction n. 
+  intros l Hl H. destruct l. apply p_nil. inversion Hl.
+  intros l Hl H. destruct l. apply p_nil. 
+  symmetry in H. destruct l. apply p_one. 
+  rewrite list_represent. rewrite last_rev.
+  replace (body (x :: x0 :: l)) with (x :: body (x0 :: l)).
+  apply p_SS. apply IHn. 
+  replace (ble_nat (length (x :: x0 :: l)) (S n)) with 
+    (ble_nat (length (x0 :: l)) n) in Hl.
+  rewrite <- ble_nat_bodylength in Hl. apply ble_nat_Sn. apply Hl.
+  reflexivity. 
+  symmetry. apply body_rev with x. apply H.
+  reflexivity.
+  apply H.
+Qed.
    
+Theorem palindrome_converse: forall X (l:list X), l = rev l -> pal l.
+Proof. intros X l. apply pal_length with (length l). 
+  symmetry. apply ble_nat_refl. 
+Qed.
 
-Theorem head_body_last: forall X (l:list X),
-  l = (head l) ++ (body l) ++ (last l). 
-Proof. intros X l. induction l.
-  reflexivity. apply f_equal. unfold body. simpl. 
-  induction l. reflexivity.
-
+(** [] *)
 
 
 (* ####################################################### *)
@@ -794,12 +824,18 @@ Inductive next_even : nat -> nat -> Prop :=
 (** Define an inductive binary relation [total_relation] that holds
     between every pair of natural numbers. *)
 
+Inductive total_relation : nat -> nat -> Prop :=
+  | tr : forall n m, total_relation n m.
+
 (* FILL IN HERE *)
 (** [] *)
 
 (** **** Exercise: 2 stars (empty_relation)  *)
 (** Define an inductive binary relation [empty_relation] (on numbers)
     that never holds. *)
+
+Inductive empty_relation : nat -> nat -> Prop := .
+
 
 (* FILL IN HERE *)
 (** [] *)
@@ -810,37 +846,41 @@ Inductive next_even : nat -> nat -> Prop :=
     practice exercises. *)
 
 Lemma le_trans : forall m n o, m <= n -> n <= o -> m <= o.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros m n o. intros H H2. induction o. 
+  inversion H2. rewrite H0 in H. apply H.
+  inversion H2. rewrite <- H0. apply H.
+  apply le_S. apply IHo. apply H1.
+Qed.
+
 
 Theorem O_le_n : forall n,
   0 <= n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. induction n. apply le_n. apply le_S. apply IHn. Qed.
 
 Theorem n_le_m__Sn_le_Sm : forall n m,
   n <= m -> S n <= S m.
-Proof. 
-  (* FILL IN HERE *) Admitted.
-
+Proof. intros n m H. induction H as [|m']. apply le_n.
+  apply le_S. apply IHle. Qed.
 
 Theorem Sn_le_Sm__n_le_m : forall n m,
   S n <= S m -> n <= m.
-Proof. 
-  (* FILL IN HERE *) Admitted.
-
+Proof. intros n m H. inversion H.
+  apply le_n. apply le_trans with (S n).
+  apply le_S. apply le_n.
+  apply H1. Qed.
 
 Theorem le_plus_l : forall a b,
   a <= a + b.
-Proof. 
-  (* FILL IN HERE *) Admitted.
+Proof. intros a b. induction a.
+  apply O_le_n.
+  apply n_le_m__Sn_le_Sm. apply IHa.
+Qed.
 
 Theorem plus_lt : forall n1 n2 m,
   n1 + n2 < m ->
   n1 < m /\ n2 < m.
 Proof. 
  unfold lt. 
- (* FILL IN HERE *) Admitted.
 
 Theorem lt_S : forall n m,
   n < m ->
