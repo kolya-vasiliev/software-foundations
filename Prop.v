@@ -1205,7 +1205,7 @@ Definition natural_number_induction_valid : Prop :=
     equivalent to [Peven n] otherwise. *)
 
 Definition combine_odd_even (Podd Peven : nat -> Prop) : nat -> Prop :=
-  (* FILL IN HERE *) admit.
+  (fun n => if oddb n then Podd n else Peven n).
 
 (** To test your definition, see whether you can prove the following
     facts: *)
@@ -1215,24 +1215,27 @@ Theorem combine_odd_even_intro :
     (oddb n = true -> Podd n) ->
     (oddb n = false -> Peven n) ->
     combine_odd_even Podd Peven n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros Podd Peven n H H2. unfold combine_odd_even.
+  destruct (oddb n). 
+    apply H. reflexivity.
+    apply H2. reflexivity. Qed.
+
 
 Theorem combine_odd_even_elim_odd :
   forall (Podd Peven : nat -> Prop) (n : nat),
     combine_odd_even Podd Peven n ->
     oddb n = true ->
     Podd n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros Podd Peven n H H2. unfold combine_odd_even in H.
+  rewrite H2 in H. apply H. Qed.
 
 Theorem combine_odd_even_elim_even :
   forall (Podd Peven : nat -> Prop) (n : nat),
     combine_odd_even Podd Peven n ->
     oddb n = false ->
     Peven n.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros Podd Peven n H H2. unfold combine_odd_even in H.
+  rewrite H2 in H. apply H. Qed.
 
 (** [] *)
 
@@ -1249,15 +1252,16 @@ Proof.
     [true_upto_n__true_everywhere] that makes
     [true_upto_n_example] work. *)
 
-(* 
-Fixpoint true_upto_n__true_everywhere
-(* FILL IN HERE *)
+Fixpoint true_upto_n__true_everywhere (n:nat) (P : nat -> Prop) : Prop :=
+  match n with
+  | 0 => forall m : nat, P m
+  | S n' => P (S n') -> true_upto_n__true_everywhere n' P
+  end.
 
 Example true_upto_n_example :
     (true_upto_n__true_everywhere 3 (fun n => even n))
   = (even 3 -> even 2 -> even 1 -> forall m : nat, even m).
-Proof. reflexivity.  Qed.
-*)
+Proof. simpl. reflexivity.  Qed.
 (** [] *)
 
 (** $Date: 2014-12-31 11:17:56 -0500 (Wed, 31 Dec 2014) $ *)
