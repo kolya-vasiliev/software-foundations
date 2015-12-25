@@ -514,8 +514,8 @@ Qed.
    at least one repeated element (of type [X]).  *)
 
 Inductive repeats {X:Type} : list X -> Prop :=
-  | r_here  : forall x l, repeats (x :: x :: l)
-  | r_later : forall y l, repeats l -> repeats (y :: l).
+  | r_here  : forall x l, appears_in x l -> repeats (x::l)
+  | r_later : forall x l, repeats l -> repeats (x::l). 
 
 (** Now here's a way to formalize the pigeonhole principle. List [l2]
     represents a list of pigeonhole labels, and list [l1] represents
@@ -527,7 +527,6 @@ Inductive repeats {X:Type} : list X -> Prop :=
     possible to make the proof go through _without_ assuming that
     [appears_in] is decidable; if you can manage to do this, you will
     not need the [excluded_middle] hypothesis. *)
-
 Theorem pigeonhole_principle: forall (X:Type) (l1  l2:list X), 
    excluded_middle -> 
    (forall x, appears_in x l1 -> appears_in x l2) -> 
@@ -535,6 +534,30 @@ Theorem pigeonhole_principle: forall (X:Type) (l1  l2:list X),
    repeats l1.  
 Proof.
    intros X l1. induction l1 as [|x l1'].
+     intros l2 ex H H2. inversion H2.
+     intros l2 ex H H2.  
+     assert (H': appears_in x l1' \/ ~ appears_in x l1').
+       apply ex.
+     destruct H'. apply r_here. apply H0.
+       apply r_later. 
+       assert (H': appears_in x l2).
+         apply H. apply ai_here.
+       apply appears_in_app_split in H'. inversion H' as [lh].
+       inversion H1 as [lt].
+       apply IHl1' with (lh++lt).
+         apply ex.
+         intros a apH. assert (apH':appears_in a l1'). apply apH.
+          apply ai_later with (b:=x) in apH. apply H in apH.
+          rewrite H3 in apH. apply appears_in_app in apH. apply app_appears_in.
+          destruct apH. 
+            left. apply H4.
+            inversion H4.
+              rewrite H6 in apH'. apply H0 in apH'. inversion apH'.
+              right. apply H6.
+         rewrite H3 in H2. rewrite app_length. rewrite app_length in H2.
+          simpl in H2. rewrite <- plus_n_Sm in H2. apply Sn_le_Sm__n_le_m.
+          apply H2.
+Qed.
 
 (** [] *)
 
