@@ -991,16 +991,18 @@ Check eq'_ind.
 (** **** Exercise: 1 star, optional (and_ind_principle)  *)
 (** See if you can predict the induction principle for conjunction. *)
 
+Check and_ind.
+
 (* Check and_ind. *)
 (** [] *)
 
 (** **** Exercise: 1 star, optional (or_ind_principle)  *)
 (** See if you can predict the induction principle for disjunction. *)
 
+Check or_ind.
+
 (* Check or_ind. *)
 (** [] *)
-
-Check and_ind.
 
 (** From the inductive definition of the proposition [and P Q]
      Inductive and (P Q : Prop) : Prop :=
@@ -1036,6 +1038,8 @@ Check and_ind.
 
 (** **** Exercise: 1 star, optional (False_ind_principle)  *)
 (** Can you predict the induction principle for falsehood? *)
+
+Check False_ind.
 
 (* Check False_ind. *)
 (** [] *)
@@ -1129,6 +1133,7 @@ Print nat_rect.
     non-standard induction principle that goes "by twos":
  
  *)
+Print even.
  
  Definition nat_ind2 : 
     forall (P : nat -> Prop), 
@@ -1142,7 +1147,16 @@ Print nat_rect.
                            | 1 => P1 
                            | S (S n') => PSS n' (f n') 
                           end.
- 
+
+Theorem nat_ind2': forall (P : nat -> Prop), 
+    P 0 -> 
+    P 1 -> 
+    (forall n : nat, P n -> P (S(S n))) -> 
+    forall n : nat , P n /\ P (S n).
+Proof. intros. induction n. split. apply H. apply H0. destruct IHn.
+    split. apply H3. apply H1. apply H2.
+Qed.
+
  (** Once you get the hang of it, it is entirely straightforward to
      give an explicit proof term for induction principles like this.
      Proving this as a lemma using tactics is much less intuitive (try
