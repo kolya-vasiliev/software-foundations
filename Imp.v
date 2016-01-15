@@ -1461,6 +1461,7 @@ Inductive ceval : com -> state -> state -> Prop :=
 
   where "c1 '/' st '||' st'" := (ceval c1 st st').
 
+Check ceval_ind.
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "E_Skip" | Case_aux c "E_Ass" | Case_aux c "E_Seq"
@@ -1495,8 +1496,12 @@ Proof.
 Example ceval_example2:
     (X ::= ANum 0;; Y ::= ANum 1;; Z ::= ANum 2) / empty_state ||
     (update (update (update empty_state X 0) Y 1) Z 2).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. apply E_Seq with (update empty_state X 0). 
+  constructor. reflexivity.
+  apply E_Seq with (update (update empty_state X 0) Y 1);
+  constructor; reflexivity.
+Qed.
+  
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (pup_to_n)  *)
@@ -1506,14 +1511,35 @@ Proof.
    (this latter part is trickier than you might expect). *)
 
 Definition pup_to_n : com :=
-  (* FILL IN HERE *) admit.
+  (Y ::= ANum 0;; 
+  WHILE BLe (ANum 1) (AId X) DO 
+    Y::= APlus (AId Y) (AId X);; 
+    X::= AMinus (AId X) (ANum 1)
+  END).  
 
 Theorem pup_to_2_ceval :
   pup_to_n / (update empty_state X 2) ||
     update (update (update (update (update (update empty_state
       X 2) Y 0) Y 2) X 1) Y 3) X 0.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. unfold pup_to_n. 
+  apply E_Seq with (update (update empty_state X 2) Y 0).
+  constructor; reflexivity.
+
+  apply E_WhileLoop with (update (update 
+(update (update empty_state X 2) Y 0) Y 2) X 1). reflexivity.
+  apply E_Seq with (update (update 
+(update empty_state X 2) Y 0) Y 2); constructor; reflexivity.
+
+  apply E_WhileLoop with (update (update (update (update 
+(update (update empty_state X 2) Y 0) Y 2) X 1) Y 3) X 0). 
+  reflexivity.
+  apply E_Seq with (update (update (update (update 
+(update empty_state X 2) Y 0) Y 2) X 1) Y 3); 
+  constructor; reflexivity.
+  
+  apply E_WhileEnd; reflexivity. 
+Qed. 
+
 (** [] *)
 
 
@@ -1599,6 +1625,14 @@ Proof.
 (** **** Exercise: 3 stars (XtimesYinZ_spec)  *)
 (** State and prove a specification of [XtimesYinZ]. *)
 
+Theorem XtimesYinZ_spec : forall st n m st',
+  st X = n ->
+  st Y = m ->
+  XtimesYinZ / st || st' ->
+  st' Z = n * m.
+Proof. intros.  inversion H1. subst. reflexivity.
+Qed.
+
 (* FILL IN HERE *)
 (** [] *)
 
@@ -1612,7 +1646,11 @@ Proof.
      [loopdef] terminates.  Most of the cases are immediately
      contradictory (and so can be solved in one step with
      [inversion]). *)
-  (* FILL IN HERE *) Admitted.
+  induction contra; inversion Heqloopdef.
+  subst. inversion H.
+  apply IHcontra2. subst. reflexivity.
+Qed. 
+  
 (** [] *)
 
 (** **** Exercise: 3 stars (no_whilesR)  *)
@@ -1634,13 +1672,32 @@ Fixpoint no_whiles (c : com) : bool :=
     with [no_whiles]. *)
 
 Inductive no_whilesR: com -> Prop :=
- (* FILL IN HERE *)
-  .
+  | E'_Skip : no_whilesR SKIP 
+  | E'_Ass  : forall a1 x,
+      no_whilesR (x ::= a1)
+  | E'_Seq : forall c1 c2,
+      no_whilesR c1 ->
+      no_whilesR c2 ->
+      no_whilesR (c1 ;; c2) 
+  | E'_If : forall b c1 c2,
+      no_whilesR c1 ->
+      no_whilesR c2 ->
+      no_whilesR (IFB b THEN c1 ELSE c2 FI).
 
 Theorem no_whiles_eqv:
    forall c, no_whiles c = true <-> no_whilesR c.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros. split. 
+  intros. induction c; 
+  try constructor; 
+  try apply IHc1;
+  try apply IHc2;
+  try (apply andb_true_iff in H; inversion H; assumption);
+  inversion H.
+
+  intros. induction H; 
+  try (apply andb_true_iff; split; assumption); reflexivity.  
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 4 stars (no_whiles_terminating)  *)
@@ -1648,7 +1705,34 @@ Proof.
     State and prove a theorem [no_whiles_terminating] that says this. *)
 (** (Use either [no_whiles] or [no_whilesR], as you prefer.) *)
 
-(* FILL IN HERE *)
+Check nil. 
+Print eq.
+
+Eval compute in (ex_intro (fun st' => SKIP / empty_state || st')). 
+Theorem no_whiles_terminating: forall c, 
+  no_whilesR c -> forall st, exists st', (c / st || st').
+Proof. intros c H. induction H; intros st.
+  exists st. constructor.
+  apply (ex_intro _ _ (E_Ass st a1 _ x eq_refl)).
+  assert (exists st' : state, c1 / st || st').
+    apply IHno_whilesR1.
+  inversion H1 as [st' H'].
+  assert (exists st'' : state, c2 / st' || st'').
+    apply IHno_whilesR2.
+  inversion H2 as [st'' H''].
+  exists st''. apply E_Seq with st'.
+  apply H'. apply H''. 
+  destruct (beval st b) eqn: Hb. 
+  assert (exists st' : state, c1 / st || st').
+    apply IHno_whilesR1. 
+  inversion H1 as [st' H'].
+  exists st'. apply E_IfTrue. apply Hb. apply H'.
+  assert (exists st' : state, c2 / st || st').
+    apply IHno_whilesR2. 
+  inversion H1 as [st' H'].
+  exists st'. apply E_IfFalse. apply Hb. apply H'.
+Qed.
+
 (** [] *)
 
 (* ####################################################### *)
