@@ -1705,10 +1705,6 @@ Qed.
     State and prove a theorem [no_whiles_terminating] that says this. *)
 (** (Use either [no_whiles] or [no_whilesR], as you prefer.) *)
 
-Check nil. 
-Print eq.
-
-Eval compute in (ex_intro (fun st' => SKIP / empty_state || st')). 
 Theorem no_whiles_terminating: forall c, 
   no_whilesR c -> forall st, exists st', (c / st || st').
 Proof. intros c H. induction H; intros st.
@@ -1798,27 +1794,43 @@ Inductive sinstr : Type :=
 Fixpoint s_execute (st : state) (stack : list nat)
                    (prog : list sinstr)
                  : list nat :=
-(* FILL IN HERE *) admit.
+  match prog, stack with
+  | [], _ => stack
+  | (SPush n) :: t, _ => s_execute st (n :: stack) t
+  | (SLoad x) :: t, _ => s_execute st ((st x) :: stack) t
+  | SPlus :: t, y :: x :: stack' => s_execute st ((x + y) :: stack') t
+  | SMinus :: t, y :: x :: stack' => s_execute st ((x - y) :: stack') t
+  | SMult :: t, y :: x :: stack' => s_execute st ((x * y) :: stack') t
+  | _ :: t, _ => s_execute st stack t
+  end.
 
 
 Example s_execute1 :
      s_execute empty_state []
        [SPush 5; SPush 3; SPush 1; SMinus]
    = [2; 5].
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 Example s_execute2 :
      s_execute (update empty_state X 3) [3;4]
        [SPush 4; SLoad X; SMult; SPlus]
    = [15; 4].
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
 
 (** Next, write a function which compiles an [aexp] into a stack
     machine program. The effect of running the program should be the
     same as pushing the value of the expression on the stack. *)
 
+Print aexp.
+
 Fixpoint s_compile (e : aexp) : list sinstr :=
-(* FILL IN HERE *) admit.
+  match e with
+  | ANum n => [SPush n]
+  | AId x => [SLoad x]
+  | APlus e1 e2 => (s_compile e1) ++ (s_compile e2) ++ [SPlus]
+  | AMinus e1 e2 => (s_compile e1) ++ (s_compile e2) ++ [SMinus]
+  | AMult e1 e2 => (s_compile e1) ++ (s_compile e2) ++ [SMult]
+  end.
 
 (** After you've defined [s_compile], prove the following to test
     that it works. *)
@@ -1826,7 +1838,8 @@ Fixpoint s_compile (e : aexp) : list sinstr :=
 Example s_compile1 :
     s_compile (AMinus (AId X) (AMult (ANum 2) (AId Y)))
   = [SLoad X; SPush 2; SLoad Y; SMult; SMinus].
-(* FILL IN HERE *) Admitted.
+Proof. reflexivity. Qed.
+
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (stack_compiler_correct)  *)
@@ -1843,11 +1856,22 @@ Example s_compile1 :
     general lemma to get a usable induction hypothesis; the main
     theorem will then be a simple corollary of this lemma. *)
 
+Theorem s_execute_app: forall l1 l2 st stack, 
+  s_execute st stack (l1 ++ l2) = s_execute st (s_execute st stack l1) l2.
+Proof. intros l1 l2 st. induction l1. reflexivity.
+  intros stack. induction a;  
+  destruct stack; try destruct stack; apply IHl1. 
+Qed.
 
 Theorem s_compile_correct : forall (st : state) (e : aexp),
   s_execute st [] (s_compile e) = [ aeval st e ].
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. remember [] as stack. clear Heqstack. intros. 
+  generalize dependent stack. induction e; intros stack; 
+  try (simpl; repeat rewrite s_execute_app;
+  rewrite IHe1; rewrite IHe2);
+  reflexivity.
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 5 stars, advanced (break_imp)  *)
