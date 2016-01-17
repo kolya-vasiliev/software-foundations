@@ -1238,12 +1238,13 @@ Inductive com : Type :=
   | CAss : id -> aexp -> com
   | CSeq : com -> com -> com
   | CIf : bexp -> com -> com -> com
-  | CWhile : bexp -> com -> com.
+  | CWhile : bexp -> com -> com
+  | CFor : com -> bexp -> com -> com -> com.
 
 Tactic Notation "com_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "SKIP" | Case_aux c "::=" | Case_aux c ";;"
-  | Case_aux c "IFB" | Case_aux c "WHILE" ].
+  | Case_aux c "IFB" | Case_aux c "WHILE" | Case_aux c "FOR" ].
 
 (** As usual, we can use a few [Notation] declarations to make things
     more readable.  We need to be a bit careful to avoid conflicts
@@ -1263,6 +1264,10 @@ Notation "'WHILE' b 'DO' c 'END'" :=
   (CWhile b c) (at level 80, right associativity).
 Notation "'IFB' c1 'THEN' c2 'ELSE' c3 'FI'" :=
   (CIf c1 c2 c3) (at level 80, right associativity).
+Notation "'FOR[[' c1 '--' c2 '--' c3 ']]' c4 'END'" :=
+  (CFor c1 c2 c3 c4) (at level 80, right associativity).
+
+Check CFor (X::= (ANum 5))  BTrue CSkip CSkip. 
 
 (** For example, here is the factorial function again, written as a
     formal definition to Coq: *)
@@ -1339,7 +1344,9 @@ Fixpoint ceval_fun_no_while (st : state) (c : com) : state :=
           else ceval_fun_no_while st c2
     | WHILE b DO c END =>
         st  (* bogus *)
+    | (FOR[[ _ -- _ -- _ ]] _ END) => st
   end.
+
 (** In a traditional functional programming language like ML or
     Haskell we could write the [WHILE] case as follows:
 <<
@@ -1458,15 +1465,18 @@ Inductive ceval : com -> state -> state -> Prop :=
       c / st || st' ->
       (WHILE b DO c END) / st' || st'' ->
       (WHILE b DO c END) / st || st''
+  | E_ForLoop : forall b st st' c x1 x2 a1 a2,
+      (x1 ::= a1 ;; WHILE b DO c ;; x2 ::= a2 END) / st || st' ->
+      (FOR[[ (x1 ::= a1) -- b -- (x2 ::= a2)]] c END) / st || st'
 
   where "c1 '/' st '||' st'" := (ceval c1 st st').
 
-Check ceval_ind.
+
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "E_Skip" | Case_aux c "E_Ass" | Case_aux c "E_Seq"
   | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
-  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" ].
+  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" | Case_aux c "E_ForLoop" ].
 
 (** *** *)
 (** The cost of defining evaluation as a relation instead of a
@@ -1597,7 +1607,10 @@ Proof.
       assert (st' = st'0) as EQ1.
         SSCase "Proof of assertion". apply IHE1_1; assumption.
       subst st'0.
-      apply IHE1_2. assumption.  Qed.
+      apply IHE1_2. assumption.
+  Case "E_ForLoop".  
+    apply IHE1. assumption.
+Qed.
 
 
 (* ####################################################### *)
@@ -1663,6 +1676,7 @@ Fixpoint no_whiles (c : com) : bool :=
   | c1 ;; c2  => andb (no_whiles c1) (no_whiles c2)
   | IFB _ THEN ct ELSE cf FI => andb (no_whiles ct) (no_whiles cf)
   | WHILE _ DO _ END  => false
+  | FOR[[_ -- _ -- _]]_ END => false
   end.
 
 (** This property yields [true] just on programs that
@@ -1993,54 +2007,118 @@ Reserved Notation "c1 '/' st '||' s '/' st'"
 
 Inductive ceval : com -> state -> status -> state -> Prop :=
   | E_Skip : forall st,
-      CSkip / st || SContinue / st
-  (* FILL IN HERE *)
+      SKIP / st || SContinue / st
+  | E_Break : forall st,
+      BREAK / st || SBreak / st
+  | E_Ass  : forall st a1 n x,
+      aeval st a1 = n ->
+      (x ::= a1) / st || SContinue / (update st x n)
+  | E_Seq : forall c1 c2 stat st st' st'',
+      c1 / st  || SContinue / st' ->
+      c2 / st' || stat / st'' ->
+      (c1 ;; c2) / st || stat / st''
+  | E_SeqBreak : forall c1 c2 stat st st' st'',
+      c1 / st  || SBreak / st' ->
+      c2 / st' || stat / st'' ->
+      (c1 ;; c2) / st || SBreak / st'
+  | E_IfTrue : forall st st' stat b c1 c2,
+      beval st b = true ->
+      c1 / st || stat / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st || stat / st'
+  | E_IfFalse : forall st st' stat b c1 c2,
+      beval st b = false ->
+      c2 / st || stat / st' ->
+      (IFB b THEN c1 ELSE c2 FI) / st || stat / st'
+  | E_WhileEnd : forall b st c,
+      beval st b = false ->
+      (WHILE b DO c END) / st || SContinue / st
+  | E_WhileBreak : forall b st st' c,
+      beval st b = true ->
+      c / st || SBreak / st' ->
+      (WHILE b DO c END) / st || SContinue / st'
+  | E_WhileLoop : forall st st' st'' b c,
+      beval st b = true ->
+      c / st || SContinue / st' ->
+      (WHILE b DO c END) / st' || SContinue / st'' ->
+      (WHILE b DO c END) / st || SContinue / st''  
 
   where "c1 '/' st '||' s '/' st'" := (ceval c1 st s st').
 
+
 Tactic Notation "ceval_cases" tactic(first) ident(c) :=
   first;
-  [ Case_aux c "E_Skip"
-  (* FILL IN HERE *)
-  ].
+  [ Case_aux c "E_Skip" | Case_aux c "E_Break" | Case_aux c "E_Ass" 
+  | Case_aux c "E_Seq" | Case_aux c "E_SeqBreak" 
+  | Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
+  | Case_aux c "E_WhileEnd" | Case_aux c "E_WhileBreak" 
+  | Case_aux c "E_WhileLoop" ].
 
 (** Now the following properties of your definition of [ceval]: *)
 
 Theorem break_ignore : forall c st st' s,
      (BREAK;; c) / st || s / st' ->
      st = st'.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros. inversion H; inversion H2; reflexivity. Qed.
 
-Theorem while_continue : forall b c st st' s,
+ Theorem while_continue : forall b c st st' s,
   (WHILE b DO c END) / st || s / st' ->
   s = SContinue.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros. inversion H; reflexivity. Qed.
 
 Theorem while_stops_on_break : forall b c st st',
   beval st b = true ->
   c / st || SBreak / st' ->
   (WHILE b DO c END) / st || SContinue / st'.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. constructor; assumption. Qed.   
 
 (** **** Exercise: 3 stars, advanced, optional (while_break_true)  *)
 Theorem while_break_true : forall b c st st',
   (WHILE b DO c END) / st || SContinue / st' ->
   beval st' b = true ->
   exists st'', c / st'' || SBreak / st'.
-Proof.
-(* FILL IN HERE *) Admitted.
+Proof. intros. remember (WHILE b DO c END) as l. 
+  ceval_cases (induction H) Case; inversion Heql; subst.
+  rewrite H in H0. inversion H0. 
+  exists st. assumption.  
+  apply IHceval2. reflexivity. assumption. Qed.
+  
 
 (** **** Exercise: 4 stars, advanced, optional (ceval_deterministic)  *)
 Theorem ceval_deterministic: forall (c:com) st st1 st2 s1 s2,
      c / st || s1 / st1  ->
      c / st || s2 / st2 ->
      st1 = st2 /\ s1 = s2.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros. generalize dependent s2. generalize dependent st2.
+  ceval_cases (induction H) Case; intros;
+  try (inversion H0; subst; split; reflexivity).
 
+  inversion H1; subst; apply IHceval1 in H4; inversion H4; 
+    try (apply IHceval2; subst; assumption);  
+    try inversion H3.
+  
+  inversion H1; subst; apply IHceval1 in H4; inversion H4; 
+    try inversion H3;
+    try split; assumption.
+
+  inversion H1; subst. apply IHceval; assumption.  
+    rewrite H8 in H. inversion H.
+
+  inversion H1; subst. rewrite H8 in H. inversion H.
+    apply IHceval; assumption.
+ 
+  inversion H0; subst; split; try reflexivity; 
+    try rewrite H3 in H; inversion H.
+
+  inversion H1; subst. rewrite H7 in H; inversion H.
+    apply IHceval in H8. inversion H8. subst. split; reflexivity.
+    apply IHceval in H5. inversion H5. inversion H3.
+
+  inversion H2; subst. rewrite H8 in H; inversion H.
+    apply IHceval1 in H9. inversion H9. inversion H4.
+    apply IHceval2. apply IHceval1 in H6. inversion H6. subst.
+    apply H10.
+Qed.
+  
 End BreakImp.
 (** [] *)
 
@@ -2056,7 +2134,21 @@ End BreakImp.
     evaluation of [BAnd] in this manner, and prove that it is
     equivalent to [beval]. *)
 
-(* FILL IN HERE *)
+Print beval.
+
+Fixpoint beval' (st : state) (b : bexp) : bool :=
+  match b with
+  | BTrue => true
+  | BFalse => false
+  | BEq a1 a2 => beq_nat (aeval st a1) (aeval st a2)
+  | BLe a1 a2 => ble_nat (aeval st a1) (aeval st a2)
+  | BNot b1 => negb (beval' st b1)
+  | BAnd b1 b2 => if beval' st b1 then beval' st b2 else false
+  end.
+
+Theorem beval_beval': forall st b, beval st b = beval' st b.
+Proof. intros. induction b; reflexivity. Qed.
+
 (** [] *)
 
 (** **** Exercise: 4 stars, optional (add_for_loop)  *)
@@ -2073,8 +2165,7 @@ End BreakImp.
     about making up a concrete Notation for [for] loops, but feel free
     to play with this too if you like.) *)
 
-(* FILL IN HERE *)
-(** [] *)
+(* done! *)
 
 
 (* <$Date: 2014-12-26 15:20:26 -0500 (Fri, 26 Dec 2014) $ *)
